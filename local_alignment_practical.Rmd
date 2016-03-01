@@ -1,0 +1,113 @@
+
+---
+title: "Local alignment in Biostrings practical"
+author: "Tim Read"
+date: "March 2016"
+output:
+  html_document:
+    theme: spacelab
+    toc: yes
+---
+Inspired by https://a-little-book-of-r-for-bioinformatics.readthedocs.org/en/latest/src/chapter4.html by Avril Coughlin.  This website is a good tutorial for learning bioinformatics based and R.
+
+##Learning objectives
+What is a good score for an alignment between two sequences.  We have seen that the Karlin-Altschul equation can be used to work out the expected number of random hits in a database for a given alignment score.  An alternative approach to find significance is to simulate scores for large numbers of random sequences.  What are the advantages and disadvantages of each approach?
+
+In this tutorial, we will cover:
+
+* Using R for random simulations
+* The Biostrings library - a BioConductor package with many functions for manipulation of DNA/ protein sequences
+* Empirical p values
+* Useful standard R functions such as sapply() and str()
+
+###Preliminary: Make sure the Biostrings package is installed
+
+If you are not on the server RStudio and you dont have the package, you will have to install through the bioClite installer
+
+##Walkthrough 
+
+
+(if already installed, skip this)
+
+```{r}
+library("Biostrings")
+```
+
+First - create a set of random DNA sequences.  This expression looks complicated but break it down into individual function calls so you understand what happened.  How could you adjust the expression to account for different DNA composition bias?
+
+####Random DNA sequences
+```{r}
+set.seed(12345)
+dset <- DNAStringSet(sapply(1:2, function(x) paste(sample(c("A","T","G","C"), 20, replace=T), collapse=""))) # Creates random sample sequences
+```
+
+Why is it important to set a value for the random seed?
+
+The 'str' command is very useful it telling you about the variables you have created
+
+####DNAStringSet objects
+```{r}
+str(dset)
+dset
+dset[1]
+dset[2]
+```
+There is a useful function in Biostrings for creating your own substitution matrices.
+
+####Create substitution matrix
+```{r}
+sigma <- nucleotideSubstitutionMatrix(match = 2, mismatch = -1, baseOnly = TRUE)
+sigma # Print out the matrix
+```
+Now test out a pairwise algnment.  Note the "local" option and that you are setting the gap opening and extension penalties (quite high in this case).
+
+####Run a pairwise S-W alignment between two random sequences
+```{r}
+sw_test <- pairwiseAlignment(dset[1],dset[2], substitutionMatrix = sigma, gapOpening = -2, gapExtension = -8, scoreOnly = FALSE, type="local")
+sw_test #print out the result
+```
+if we were performing a S-W test for two short sequences of 20bp, we might be concerned about whether the score we got was statistically significant. One way to get a handle on this empirically would be to see if it was significantly higher than that seen in a population of *random* sequenes.
+
+####Score distribution for 1000 alignments of random sequence
+```{r}
+randScores <- vector()  #initialize results vector as empty
+for (i in 1:1000){
+  #create two random sequences
+  rset <- DNAStringSet(sapply(1:2, function(x) paste(sample(c("A","T","G","C"), 20, replace=T), collapse="")))
+  # run an alignment and collect the score
+  rscore <- pairwiseAlignment(rset[1],rset[2], substitutionMatrix = sigma, gapOpening = -2, gapExtension = -8, scoreOnly = TRUE, type="local")
+  #append to results vector
+  randScores <- append(randScores, rscore)
+}
+randScores  # look at the scores
+```
+
+####Visualize the score distribution
+```{r}
+hist(randScores, col = "blue")
+```
+
+##Questions
+1.  What score is geater than 95% obtained when comparing random sequences?
+2.  What score is geater than 99% obtained when comparing random sequences?
+3.  Can you add vertical lines in red on the figure to show these values?
+
+##Exercise
+Take the 25-mer sequences:
+CTCCCACAGCGGTTAGCGGACGAAA
+
+and, 
+
+CTCAAACAGCGGTTAGCGTTTGAAT
+
+Calculate local and global alignments and see if they are significant at P > 0.01
+
+##Further work
+Try rerunning the script but tweak the parameters one at a time, e.g. the random seed, gap opening penalties, sequence length, substitution matrix.
+
+####Session info
+```{r, echo=FALSE}
+sessionInfo()
+```
+
+
